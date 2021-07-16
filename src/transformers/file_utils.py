@@ -88,6 +88,7 @@ if USE_TF in ENV_VARS_TRUE_AND_AUTO_VALUES and USE_TORCH not in ENV_VARS_TRUE_VA
             "tf-nightly-cpu",
             "tf-nightly-gpu",
             "intel-tensorflow",
+            "intel-tensorflow-avx512",
             "tensorflow-rocm",
             "tensorflow-macos",
         )
@@ -982,7 +983,7 @@ TF_MULTIPLE_CHOICE_SAMPLE = r"""
         >>> choice0 = "It is eaten with a fork and a knife."
         >>> choice1 = "It is eaten while held in the hand."
 
-        >>> encoding = tokenizer([[prompt, prompt], [choice0, choice1]], return_tensors='tf', padding=True)
+        >>> encoding = tokenizer([prompt, prompt], [choice0, choice1], return_tensors='tf', padding=True)
         >>> inputs = {{k: tf.expand_dims(v, 0) for k, v in encoding.items()}}
         >>> outputs = model(inputs)  # batch size is 1
 
@@ -1099,7 +1100,7 @@ FLAX_MULTIPLE_CHOICE_SAMPLE = r"""
         >>> choice0 = "It is eaten with a fork and a knife."
         >>> choice1 = "It is eaten while held in the hand."
 
-        >>> encoding = tokenizer([[prompt, prompt], [choice0, choice1]], return_tensors='jax', padding=True)
+        >>> encoding = tokenizer([prompt, prompt], [choice0, choice1], return_tensors='jax', padding=True)
         >>> outputs = model(**{{k: v[None, :] for k,v in encoding.items()}})
 
         >>> logits = outputs.logits
