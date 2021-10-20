@@ -58,7 +58,7 @@ a0 | b0 | c0
 a1 | b1 | c1
 a2 | b2 | c2
 ```
-Layer La has weights a0, at and a2.
+Layer La has weights a0, a1 and a2.
 
 If we have 3 GPUs, the Sharded DDP (= Zero-DP) splits the model onto 3 GPUs like so:
 
@@ -220,9 +220,12 @@ Special considerations: TP requires very fast network, and therefore it's not ad
 This section is based on the original much more [detailed TP overview](https://github.com/huggingface/transformers/issues/10321#issuecomment-783543530).
 by [@anton-l](https://github.com/anton-l).
 
-Implementations:
+Alternative names:
 - DeepSpeed calls it [tensor slicing](https://www.deepspeed.ai/features/#model-parallelism)
-- [Megatron-LM](https://github.com/NVIDIA/Megatron-LM) has an internal implementation.
+
+Implementations:
+- [Megatron-LM](https://github.com/NVIDIA/Megatron-LM) has an internal implementation, as it's very model-specific
+- [parallelformers](https://github.com/tunib-ai/parallelformers) (only inference at the moment)
 
 🤗 Transformers status:
 - core: not yet implemented in the core
@@ -293,12 +296,27 @@ Paper: ["Beyond Data and Model Parallelism for Deep Neural Networks" by Zhihao J
 
 It performs a sort of 4D Parallelism over Sample-Operator-Attribute-Parameter.
 
-1. Sample = Data Parallelism
-2. Operator = part vertical Layer Parallelism, but it can split the layer too - more refined level
-3. Attribute = horizontal Model Parallelism (Megatron-LM style)
-4. Parameter = Sharded model params
+1. Sample = Data Parallelism (sample-wise parallel)
+2. Operator = Parallelize a single operation into several sub-operations
+3. Attribute = Data Parallelism (length-wise parallel)
+4. Parameter = Model Parallelism (regardless of dimension - horizontal or vertical)
 
-and they are working on Pipeline Parallelism. I guess ZeRO-DP is Sample+Parameter in this context.
+Examples:
+* Sample
+
+Let's take 10 batches of sequence length 512. If we parallelize them by sample dimension into 2 devices, we get 10 x 512 which becomes be 5 x 2 x 512.
+
+* Operator
+
+If we perform layer normalization, we compute std first and mean second, and then we can normalize data. Operator parallelism allows computing std and mean in parallel. So if we parallelize them by operator dimension into 2 devices (cuda:0, cuda:1), first we copy input data into both devices, and cuda:0 computes std, cuda:1 computes mean at the same time.
+
+* Attribute
+
+We have 10 batches of 512 length. If we parallelize them by attribute dimension into 2 devices, 10 x 512 will be 10 x 2 x 256.
+
+* Parameter
+
+It is similar with tensor model parallelism or naive layer-wise model parallelism.
 
 ![flex-flow-soap](imgs/parallelism-flexflow.jpeg)
 
@@ -313,7 +331,7 @@ So the promise is very attractive - it runs a 30min simulation on the cluster of
 
 ## Which Strategy To Use When
 
-Here is a very rough outlook at which parallelism strategy to use when. The first on the list is typically faster.
+Here is a very rough outline at which parallelism strategy to use when. The first on each list is typically faster.
 
 **⇨ Single GPU**
 
@@ -324,7 +342,11 @@ Here is a very rough outlook at which parallelism strategy to use when. The firs
 * Model doesn't fit onto a single GPU:
 
     1. ZeRO + Offload CPU and optionally NVMe
+    2. as above plus Memory Centric Tiling (see below for details) if the largest layer can't fit into a single GPU
 
+* Largest Layer not fitting into a single GPU:
+
+1. ZeRO - Enable [Memory Centric Tiling](https://deepspeed.readthedocs.io/en/latest/zero3.html#memory-centric-tiling) (MCT). It allows you to run arbitrarily large layers by automatically splitting them and executing them sequentially. MCT reduces the number of parameters that are live on a GPU, but it does not affect the activation memory. As this need is very rare as of this writing a manual override of `torch.nn.Linear` needs to be done by the user.
 
 **⇨ Single Node / Multi-GPU**
 
@@ -339,7 +361,14 @@ Here is a very rough outlook at which parallelism strategy to use when. The firs
     2. ZeRO
     3. TP
 
-    With very fast intra-node connectivity of NVLINK or NVSwitch all three should be mostly on par, without these PP will be faster than TP and ZeRO. The degree of TP may also make a difference. Best to experiment to find the winner on your particular setup.
+    With very fast intra-node connectivity of NVLINK or NVSwitch all three should be mostly on par, without these PP will be faster than TP or ZeRO. The degree of TP may also make a difference. Best to experiment to find the winner on your particular setup.
+
+    TP is almost always used within a single node. That is TP size <= gpus per node.
+
+* Largest Layer not fitting into a single GPU:
+
+    1. If not using ZeRO - must use TP, as PP alone won't be able to fit.
+    2. With ZeRO see the same entry for "Single GPU" above
 
 
 **⇨ Multi-Node / Multi-GPU**
