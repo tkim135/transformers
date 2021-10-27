@@ -258,7 +258,7 @@ def _compute_mask_indices(
         tf.ones_like(spec_aug_mask_idxs), spec_aug_mask_idxs, spec_aug_mask.shape
     )
 
-    return tf.cast(spec_aug_mask, tf.float32)
+    return spec_aug_mask
 
 
 # Copied from transformers.models.bart.modeling_tf_bart._expand_mask
@@ -1412,7 +1412,7 @@ class TFHubertModel(TFHubertPreTrainedModel):
             ...     batch["speech"] = speech
             ...     return batch
 
-            >>> ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
+            >>> ds = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
             >>> ds = ds.map(map_to_array)
 
             >>> input_values = processor(ds["speech"][0], return_tensors="tf").input_values  # Batch size 1
@@ -1522,7 +1522,7 @@ class TFHubertForCTC(TFHubertPreTrainedModel):
             ...     batch["speech"] = speech
             ...     return batch
 
-            >>> ds = load_dataset("patrickvonplaten/librispeech_asr_dummy", "clean", split="validation")
+            >>> ds = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
             >>> ds = ds.map(map_to_array)
 
             >>> input_values = processor(ds["speech"][0], return_tensors="tf").input_values # Batch size 1
