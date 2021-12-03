@@ -28,6 +28,7 @@ from typing import Optional
 import datasets
 import numpy as np
 from datasets import ClassLabel, load_dataset, load_metric
+import torch
 
 import transformers
 from transformers import (
@@ -337,6 +338,7 @@ def main():
             use_auth_token=True if model_args.use_auth_token else None,
             add_prefix_space=True,
         )
+        tokenizer.pad_token = tokenizer.eos_token
     else:
         tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name_or_path,
@@ -354,6 +356,9 @@ def main():
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
     )
+    for block in model.transformer.h:
+        block.attn.bias = torch.ones_like(block.attn.bias)
+        block.attn.masked_bias = torch.tensor(-1.)
 
     # Tokenizer check: this script requires a fast tokenizer.
     if not isinstance(tokenizer, PreTrainedTokenizerFast):
