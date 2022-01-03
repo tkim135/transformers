@@ -26,9 +26,12 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import datasets
+import h5py
 import numpy as np
 from datasets import ClassLabel, load_dataset, load_metric
 import torch
+from torch import nn
+from torch.utils.data.dataset import Dataset
 
 import transformers
 from transformers import (
@@ -184,6 +187,45 @@ class DataTrainingArguments:
                 assert extension in ["csv", "json"], "`validation_file` should be a csv or a json file."
         self.task_name = self.task_name.lower()
 
+# define for loading checkpoints
+class WorkerInitObj(object):
+    def __init__(self, seed):
+        self.seed = seed
+    def __call__(self, id):
+        np.random.seed(seed=self.seed + id)
+        random.seed(self.seed + id)
+
+class pretraining_dataset(Dataset):
+
+    def __init__(self, input_file, max_pred_length):
+        self.input_file = input_file
+        self.max_pred_length = max_pred_length
+        f = h5py.File(input_file, "r")
+        keys = ['input_ids', 'input_mask', 'segment_ids', 'masked_lm_positions', 'masked_lm_ids',
+                'next_sentence_labels']
+        self.inputs = [np.asarray(f[key][:]) for key in keys]
+        f.close()
+
+    def __len__(self):
+        'Denotes the total number of samples'
+        return len(self.inputs[0])
+
+    def __getitem__(self, index):
+
+        [input_ids, input_mask, segment_ids, masked_lm_positions, masked_lm_ids, next_sentence_labels] = [
+            torch.from_numpy(input[index].astype(np.int64)) if indice < 5 else torch.from_numpy(
+                np.asarray(input[index].astype(np.int64))) for indice, input in enumerate(self.inputs)]
+
+        masked_lm_labels = torch.ones(input_ids.shape, dtype=torch.long) * -1
+        index = self.max_pred_length
+        # store number of  masked tokens in index
+        padded_mask_indices = (masked_lm_positions == 0).nonzero()
+        if len(padded_mask_indices) != 0:
+            index = padded_mask_indices[0].item()
+        masked_lm_labels[masked_lm_positions[:index]] = masked_lm_ids[:index]
+
+        return [input_ids, segment_ids, input_mask,
+                masked_lm_labels, next_sentence_labels]
 
 def main():
     # See all possible arguments in src/transformers/training_args.py
@@ -348,14 +390,18 @@ def main():
             use_auth_token=True if model_args.use_auth_token else None,
         )
 
+    config.vocab_size = 50259
+    # CHANGE CHECKPOINT PATH ACCORDINGLY
+    checkpoint = torch.load("/scratch/tonyk/checkpoints_wwmmlm_gpt2small_ss1024_mlmprob03_maxpred320_300k_2a100/ckpt_65000.pt")
+
     model = AutoModelForTokenClassification.from_pretrained(
-        model_args.model_name_or_path,
-        from_tf=bool(".ckpt" in model_args.model_name_or_path),
+        pretrained_model_name_or_path=None,
+        state_dict=checkpoint["model"],
         config=config,
-        cache_dir=model_args.cache_dir,
-        revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
+        #cache_dir=model_args.cache_dir,
     )
+    for block in model.transformer.h:
+        block.attn.bias = torch.ones_like(block.attn.bias)
 
     # Tokenizer check: this script requires a fast tokenizer.
     if not isinstance(tokenizer, PreTrainedTokenizerFast):
