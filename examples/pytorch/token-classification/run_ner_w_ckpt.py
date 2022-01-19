@@ -201,8 +201,7 @@ class pretraining_dataset(Dataset):
         self.input_file = input_file
         self.max_pred_length = max_pred_length
         f = h5py.File(input_file, "r")
-        keys = ['input_ids', 'input_mask', 'segment_ids', 'masked_lm_positions', 'masked_lm_ids',
-                'next_sentence_labels']
+        keys = ['input_ids', 'input_mask', 'segment_ids', 'masked_lm_positions', 'masked_lm_ids']
         self.inputs = [np.asarray(f[key][:]) for key in keys]
         f.close()
 
@@ -212,7 +211,7 @@ class pretraining_dataset(Dataset):
 
     def __getitem__(self, index):
 
-        [input_ids, input_mask, segment_ids, masked_lm_positions, masked_lm_ids, next_sentence_labels] = [
+        [input_ids, input_mask, segment_ids, masked_lm_positions, masked_lm_ids] = [
             torch.from_numpy(input[index].astype(np.int64)) if indice < 5 else torch.from_numpy(
                 np.asarray(input[index].astype(np.int64))) for indice, input in enumerate(self.inputs)]
 
@@ -225,7 +224,7 @@ class pretraining_dataset(Dataset):
         masked_lm_labels[masked_lm_positions[:index]] = masked_lm_ids[:index]
 
         return [input_ids, segment_ids, input_mask,
-                masked_lm_labels, next_sentence_labels]
+                masked_lm_labels]
 
 def main():
     # See all possible arguments in src/transformers/training_args.py

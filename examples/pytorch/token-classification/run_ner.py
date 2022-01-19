@@ -171,6 +171,10 @@ class DataTrainingArguments:
         default=False,
         metadata={"help": "Whether to return all the entity levels during evaluation or just the overall ones."},
     )
+    repeat_input_sequence: bool = field(
+        default=False,
+        metadata={"help": "Whether to repeat the input sequence when inputting for GPT CLM."},
+    )
 
     def __post_init__(self):
         if self.dataset_name is None and self.train_file is None and self.validation_file is None:
@@ -400,6 +404,13 @@ def main():
                     else:
                         label_ids.append(-100)
                 previous_word_idx = word_idx
+
+            if data_args.repeat_input_sequence:
+                # repetition scheme
+                tokenized_inputs["input_ids"][i] = 2*tokenized_inputs["input_ids"][i]
+                tokenized_inputs["attention_mask"][i] = 2*tokenized_inputs["attention_mask"][i]
+                original_length = len(label_ids)
+                label_ids = [-100 for _ in range(original_length)] + label_ids
 
             labels.append(label_ids)
         tokenized_inputs["labels"] = labels
