@@ -405,7 +405,7 @@ def main():
                         label_ids.append(-100)
                 previous_word_idx = word_idx
 
-            if data_args.repeat_input_sequence:
+            if data_args.repeat_input_sequence and len(tokenized_inputs["input_ids"][i]) <= data_args.max_seq_length/2:
                 # repetition scheme
                 tokenized_inputs["input_ids"][i] = 2*tokenized_inputs["input_ids"][i]
                 tokenized_inputs["attention_mask"][i] = 2*tokenized_inputs["attention_mask"][i]
