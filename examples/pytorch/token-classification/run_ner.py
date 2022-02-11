@@ -29,6 +29,7 @@ import datasets
 import numpy as np
 from datasets import ClassLabel, load_dataset, load_metric
 import torch
+import torch.nn as nn
 
 import transformers
 from transformers import (
@@ -36,6 +37,7 @@ from transformers import (
     AutoModelForTokenClassification,
     AutoTokenizer,
     DataCollatorForTokenClassification,
+    GPT2ForTokenClassification,
     HfArgumentParser,
     PreTrainedTokenizerFast,
     Trainer,
@@ -253,7 +255,8 @@ def main():
     if data_args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
         raw_datasets = load_dataset(
-            data_args.dataset_name, data_args.dataset_config_name, cache_dir=model_args.cache_dir
+            '/scratch/tonyk/1batch_data/conll2003', cache_dir=model_args.cache_dir
+             #data_args.dataset_name, data_args.dataset_config_name, cache_dir=model_args.cache_dir
         )
     else:
         data_files = {}
@@ -331,6 +334,9 @@ def main():
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
     )
+    config.attn_pdrop = 0.0
+    config.embd_pdrop = 0.0
+    config.resid_pdrop = 0.0
 
     tokenizer_name_or_path = model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path
     if config.model_type in {"gpt2", "roberta"}:
@@ -359,7 +365,8 @@ def main():
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
-    )
+    ) if model_args.model_name_or_path != 'None' else GPT2ForTokenClassification(config)
+    model.dropout = nn.Dropout(0.0)
 
     # Tokenizer check: this script requires a fast tokenizer.
     if not isinstance(tokenizer, PreTrainedTokenizerFast):
@@ -383,6 +390,7 @@ def main():
             # We use this argument because the texts in our dataset are lists of words (with a label for each word).
             is_split_into_words=True,
         )
+        import pdb; pdb.set_trace()
         labels = []
         for i, label in enumerate(examples[label_column_name]):
             word_ids = tokenized_inputs.word_ids(batch_index=i)
@@ -518,6 +526,7 @@ def main():
             checkpoint = training_args.resume_from_checkpoint
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
+        import pdb; pdb.set_trace()
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
         metrics = train_result.metrics
         trainer.save_model()  # Saves the tokenizer too for easy upload
