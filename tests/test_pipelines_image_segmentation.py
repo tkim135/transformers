@@ -26,7 +26,6 @@ from transformers import (
 from transformers.testing_utils import (
     is_pipeline_test,
     nested_simplify,
-    require_datasets,
     require_tf,
     require_timm,
     require_torch,
@@ -54,15 +53,20 @@ else:
 class ImageSegmentationPipelineTests(unittest.TestCase, metaclass=PipelineTestCaseMeta):
     model_mapping = MODEL_FOR_IMAGE_SEGMENTATION_MAPPING
 
-    @require_datasets
-    def run_pipeline_test(self, model, tokenizer, feature_extractor):
+    def get_test_pipeline(self, model, tokenizer, feature_extractor):
         image_segmenter = ImageSegmentationPipeline(model=model, feature_extractor=feature_extractor)
+        return image_segmenter, [
+            "./tests/fixtures/tests_samples/COCO/000000039769.png",
+            "./tests/fixtures/tests_samples/COCO/000000039769.png",
+        ]
+
+    def run_pipeline_test(self, image_segmenter, examples):
         outputs = image_segmenter("./tests/fixtures/tests_samples/COCO/000000039769.png", threshold=0.0)
         self.assertEqual(outputs, [{"score": ANY(float), "label": ANY(str), "mask": ANY(str)}] * 12)
 
         import datasets
 
-        dataset = datasets.load_dataset("Narsil/image_dummy", "image", split="test")
+        dataset = datasets.load_dataset("hf-internal-testing/fixtures_image_utils", "image", split="test")
 
         batch = [
             Image.open("./tests/fixtures/tests_samples/COCO/000000039769.png"),
