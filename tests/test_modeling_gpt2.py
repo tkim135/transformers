@@ -155,7 +155,6 @@ class GPT2ModelTester:
             resid_pdrop=self.hidden_dropout_prob,
             attn_pdrop=self.attention_probs_dropout_prob,
             n_positions=self.max_position_embeddings,
-            n_ctx=self.max_position_embeddings,
             type_vocab_size=self.type_vocab_size,
             initializer_range=self.initializer_range,
             use_cache=True,
@@ -434,7 +433,7 @@ class GPT2ModelTest(ModelTesterMixin, GenerationTesterMixin, unittest.TestCase):
     )
     all_generative_model_classes = (GPT2LMHeadModel, GPT2DoubleHeadsModel) if is_torch_available() else ()
     all_parallelizable_model_classes = (GPT2LMHeadModel, GPT2DoubleHeadsModel) if is_torch_available() else ()
-    fx_ready_model_classes = all_model_classes
+    fx_compatible = True
     test_missing_keys = False
     test_model_parallel = True
 

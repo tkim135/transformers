@@ -22,7 +22,7 @@ import pytest
 
 from tests.test_modeling_common import floats_tensor, ids_tensor, random_attention_mask
 from transformers import HubertConfig, is_torch_available
-from transformers.testing_utils import require_datasets, require_soundfile, require_torch, slow, torch_device
+from transformers.testing_utils import require_soundfile, require_torch, slow, torch_device
 
 from .test_configuration_common import ConfigTester
 from .test_modeling_common import ModelTesterMixin, _config_zero_init
@@ -225,7 +225,7 @@ class HubertModelTester:
         model.train()
 
         # freeze feature encoder
-        model.freeze_feature_extractor()
+        model.freeze_feature_encoder()
 
         input_values = input_values[:3]
 
@@ -425,6 +425,10 @@ class HubertModelTest(ModelTesterMixin, unittest.TestCase):
         if hasattr(module, "masked_spec_embed") and module.masked_spec_embed is not None:
             module.masked_spec_embed.data.fill_(3)
 
+    @unittest.skip(reason="Feed forward chunking is not implemented")
+    def test_feed_forward_chunking(self):
+        pass
+
     @slow
     def test_model_from_pretrained(self):
         model = HubertModel.from_pretrained("facebook/hubert-base-ls960")
@@ -572,6 +576,10 @@ class HubertRobustModelTest(ModelTesterMixin, unittest.TestCase):
         if hasattr(module, "masked_spec_embed") and module.masked_spec_embed is not None:
             module.masked_spec_embed.data.fill_(3)
 
+    @unittest.skip(reason="Feed forward chunking is not implemented")
+    def test_feed_forward_chunking(self):
+        pass
+
     @slow
     def test_model_from_pretrained(self):
         model = HubertModel.from_pretrained("facebook/hubert-large-ls960-ft")
@@ -606,7 +614,6 @@ class HubertUtilsTest(unittest.TestCase):
 
 
 @require_torch
-@require_datasets
 @require_soundfile
 @slow
 class HubertModelIntegrationTest(unittest.TestCase):
@@ -615,7 +622,9 @@ class HubertModelIntegrationTest(unittest.TestCase):
 
         ds = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
         # automatic decoding with librispeech
-        speech_samples = ds.sort("id").select(range(num_samples))[:num_samples]["audio"]
+        speech_samples = ds.sort("id").filter(
+            lambda x: x["id"] in [f"1272-141231-000{i}" for i in range(num_samples)]
+        )[:num_samples]["audio"]
 
         return [x["array"] for x in speech_samples]
 
@@ -758,3 +767,46 @@ class HubertModelIntegrationTest(unittest.TestCase):
         self.assertListEqual(predicted_ids.tolist(), expected_labels)
         # TODO: lower the tolerance after merging the padding fix https://github.com/pytorch/fairseq/pull/3572
         self.assertTrue(torch.allclose(predicted_logits, expected_logits, atol=1e-1))
+
+    def test_inference_distilhubert(self):
+        model = HubertModel.from_pretrained("ntu-spml/distilhubert").to(torch_device)
+        processor = Wav2Vec2FeatureExtractor.from_pretrained("ntu-spml/distilhubert")
+
+        # TODO: can't test on batched inputs due to incompatible padding https://github.com/pytorch/fairseq/pull/3572
+        input_speech = self._load_datasamples(1)
+
+        inputs = processor(input_speech, return_tensors="pt", padding=True)
+
+        input_values = inputs.input_values.to(torch_device)
+
+        with torch.no_grad():
+            outputs = model(input_values).last_hidden_state
+
+        # expected outputs taken from the original SEW implementation
+        expected_outputs_first = torch.tensor(
+            [
+                [
+                    [-0.3505, 0.1167, 0.0608, 0.1294],
+                    [-0.3085, 0.0481, 0.1106, 0.0955],
+                    [-0.3107, -0.0391, 0.0739, 0.1360],
+                    [-0.2385, -0.1795, -0.0928, 0.2389],
+                ]
+            ],
+            device=torch_device,
+        )
+        expected_outputs_last = torch.tensor(
+            [
+                [
+                    [-0.0732, 0.0255, 0.0529, -0.1372],
+                    [-0.0812, 0.1259, 0.0564, -0.0438],
+                    [-0.0054, 0.0758, -0.0002, -0.1617],
+                    [0.0133, -0.0320, -0.0687, 0.0062],
+                ]
+            ],
+            device=torch_device,
+        )
+        expected_output_sum = -3776.0730
+
+        self.assertTrue(torch.allclose(outputs[:, :4, :4], expected_outputs_first, atol=5e-3))
+        self.assertTrue(torch.allclose(outputs[:, -4:, -4:], expected_outputs_last, atol=5e-3))
+        self.assertTrue(abs(outputs.sum() - expected_output_sum) < 0.1)

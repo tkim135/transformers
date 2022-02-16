@@ -22,7 +22,7 @@ import pytest
 
 from tests.test_modeling_common import floats_tensor, ids_tensor, random_attention_mask
 from transformers import SEWDConfig, is_torch_available
-from transformers.testing_utils import require_datasets, require_soundfile, require_torch, slow, tooslow, torch_device
+from transformers.testing_utils import require_soundfile, require_torch, slow, torch_device
 
 from .test_configuration_common import ConfigTester
 from .test_modeling_common import ModelTesterMixin, _config_zero_init
@@ -224,7 +224,7 @@ class SEWDModelTester:
         model.train()
 
         # freeze feature encoder
-        model.freeze_feature_extractor()
+        model.freeze_feature_encoder()
 
         input_values = input_values[:3]
 
@@ -441,6 +441,10 @@ class SEWDModelTest(ModelTesterMixin, unittest.TestCase):
         if hasattr(module, "masked_spec_embed") and module.masked_spec_embed is not None:
             module.masked_spec_embed.data.fill_(3)
 
+    @unittest.skip(reason="Feed forward chunking is not implemented")
+    def test_feed_forward_chunking(self):
+        pass
+
     @slow
     def test_model_from_pretrained(self):
         model = SEWDModel.from_pretrained("asapp/sew-d-tiny-100k")
@@ -475,7 +479,6 @@ class SEWDUtilsTest(unittest.TestCase):
 
 
 @require_torch
-@require_datasets
 @require_soundfile
 @slow
 class SEWDModelIntegrationTest(unittest.TestCase):
@@ -540,31 +543,28 @@ class SEWDModelIntegrationTest(unittest.TestCase):
         )
         expected_output_sum = 54201.0469
 
-        self.assertTrue(torch.allclose(outputs[:, :4, :4], expected_outputs_first, atol=5e-3))
-        self.assertTrue(torch.allclose(outputs[:, -4:, -4:], expected_outputs_last, atol=5e-3))
-        self.assertTrue(abs(outputs.sum() - expected_output_sum) < 5)
+        self.assertTrue(torch.allclose(outputs[:, :4, :4], expected_outputs_first, atol=1e-3))
+        self.assertTrue(torch.allclose(outputs[:, -4:, -4:], expected_outputs_last, atol=1e-3))
+        self.assertTrue(abs(outputs.sum() - expected_output_sum) < 1)
 
-    @tooslow
     def test_inference_ctc_batched(self):
-        # TODO: enable this test once the finetuned models are available
-        model = SEWDForCTC.from_pretrained("asapp/sew-d-tiny-100k-ft-100h").to(torch_device)
-        processor = Wav2Vec2Processor.from_pretrained("asapp/sew-d-tiny-100k-ft-100h", do_lower_case=True)
+        model = SEWDForCTC.from_pretrained("asapp/sew-d-tiny-100k-ft-ls100h").to(torch_device)
+        processor = Wav2Vec2Processor.from_pretrained("asapp/sew-d-tiny-100k-ft-ls100h", do_lower_case=True)
 
         input_speech = self._load_datasamples(2)
 
         inputs = processor(input_speech, return_tensors="pt", padding=True)
 
         input_values = inputs.input_values.to(torch_device)
-        attention_mask = inputs.attention_mask.to(torch_device)
 
         with torch.no_grad():
-            logits = model(input_values, attention_mask=attention_mask).logits
+            logits = model(input_values).logits
 
         predicted_ids = torch.argmax(logits, dim=-1)
         predicted_trans = processor.batch_decode(predicted_ids)
 
         EXPECTED_TRANSCRIPTIONS = [
             "a man said to the universe sir i exist",
-            "sweat covered brion's body trickling into the tight loin cloth that was the only garment he wore",
+            "swet covered breon's body trickling into the titlowing closs that was the only garmened he war",
         ]
         self.assertListEqual(predicted_trans, EXPECTED_TRANSCRIPTIONS)
