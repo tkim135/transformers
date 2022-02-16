@@ -47,6 +47,8 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
+from downstream_t5 import T5ForTokenClassification
+
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.12.0.dev0")
@@ -354,7 +356,7 @@ def main():
         )
 
     if model_args.model_name_or_path.startswith('t5'):
-        model = T5ForConditionalGeneration.from_pretrained(
+        model = T5ForTokenClassification.from_pretrained(
             model_args.model_name_or_path,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
             config=config,
