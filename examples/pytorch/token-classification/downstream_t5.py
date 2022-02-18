@@ -114,7 +114,7 @@ class T5ForSequenceClassification(T5PreTrainedModel):
                 loss_fct = BCEWithLogitsLoss()
                 loss = loss_fct(pooled_logits, labels)
         if not return_dict:
-            output = (pooled_logits,) + transformer_outputs[1:]
+            output = (pooled_logits,) + encoder_outputs[1:]
             return ((loss,) + output) if loss is not None else output
 
         return SequenceClassifierOutputWithPast(
@@ -209,7 +209,7 @@ class T5ForTokenClassification(T5PreTrainedModel):
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
 
         if not return_dict:
-            output = (logits,) + transformer_outputs[2:]
+            output = (logits,) + encoder_outputs[2:]
             return ((loss,) + output) if loss is not None else output
 
         return TokenClassifierOutput(
