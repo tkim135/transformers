@@ -349,7 +349,7 @@ def main():
             use_auth_token=True if model_args.use_auth_token else None,
         )
 
-    if model_args.model_name_or_path.startswith('t5'):
+    if config.model_type == 't5':
         model = T5ForTokenClassification.from_pretrained(
             model_args.model_name_or_path,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
