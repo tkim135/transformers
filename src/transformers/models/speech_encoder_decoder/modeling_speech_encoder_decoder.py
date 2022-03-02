@@ -490,15 +490,16 @@ class SpeechEncoderDecoderModel(PreTrainedModel):
             argument[len("decoder_") :]: value for argument, value in kwargs.items() if argument.startswith("decoder_")
         }
 
-        if encoder_outputs is None and inputs is None:
-            if input_values is not None and input_features is not None:
-                raise ValueError("You cannot specify both input_values and input_features at the same time")
-            elif input_values is not None:
-                inputs = input_values
-            elif input_features is not None:
-                inputs = input_features
-            else:
-                raise ValueError("You have to specify either input_values or input_features")
+        if encoder_outputs is None:
+            if inputs is None:
+                if input_values is not None and input_features is not None:
+                    raise ValueError("You cannot specify both input_values and input_features at the same time")
+                elif input_values is not None:
+                    inputs = input_values
+                elif input_features is not None:
+                    inputs = input_features
+                else:
+                    raise ValueError("You have to specify either input_values or input_features")
 
             encoder_outputs = self.encoder(
                 inputs,
@@ -549,7 +550,7 @@ class SpeechEncoderDecoderModel(PreTrainedModel):
         # Compute loss independent from decoder (as some shift the logits inside them)
         loss = None
         if labels is not None:
-            logits = decoder_outputs.logits if return_dict else decoder_outputs[1]
+            logits = decoder_outputs.logits if return_dict else decoder_outputs[0]
             loss_fct = CrossEntropyLoss()
             loss = loss_fct(logits.reshape(-1, self.decoder.config.vocab_size), labels.view(-1))
 

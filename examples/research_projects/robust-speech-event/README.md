@@ -82,12 +82,7 @@ You should have received an invite by email. If you didn't receive an invite, pl
 
 ## Important dates
 
-- **12.01.** Official announcement of the community event. Make sure to sign-up in [this google form](TODO: )
-- **12.01. - 19.01.** Participants sign up for the event.
-- **19.01.** Release of all relevant guides and training scripts.
-- **24.01.** Start of the community week! OVH & Hugging Face gives access to GPUs.
-- **24.01. - 07.02.** The OVH & Hugging Face team will be available for any questions, problems the participants might have.
-- **07.02.** Access to GPU is deactivated and community week officially ends.
+![timeline](https://github.com/patrickvonplaten/scientific_images/raw/master/Robush%20Speech%20Challenge.png)
 
 
 ## Data and preprocessing
@@ -476,7 +471,7 @@ hyperparameters.
 
 ## How to finetune with OVH cloud
 
-For a more detailed guide on setting up OVHcloud please watch this video: TODO
+[![Youtube](https://www.youtube.com/s/desktop/f506bd45/img/favicon_32.png)](https://youtu.be/XkMnYocAEO0) For a more detailed guide on setting up OVHcloud please watch this video: https://youtu.be/XkMnYocAEO0
 
 ### Creating an OVHCloud account
 *TIP*: If you haven't created a project on OVHcloud yet, make sure you've received your GPU voucher code *beforehand*, 
@@ -502,7 +497,7 @@ Click `+ Launch a new job` on the AI Training page.
    * In `5. Configure your job` select **1** `GPU`.
    * Validate the info and Create the job.
 6. On the `AI Training Jobs` screen wait until the job's status changes from `Pending` to `Running`.
-7. Click `HTTP Access` and log in with the AI training user you've created earlier. 
+7. Click `HTTP Access` from the Job's details page and log in with the AI training user you've created earlier. 
 Once logged in, you can close the page and click `HTTP Access` to launch a JupyterLab notebook.
 8. Awesome, now you have a free GPU-enabled Jupyter instance!
 
@@ -510,6 +505,8 @@ Once logged in, you can close the page and click `HTTP Access` to launch a Jupyt
 like the one in step 5. The Dockerfile for it is available here: 
 [baaastijn/Dockerimages](https://github.com/baaastijn/Dockerimages/tree/main/Hugginface_challenge_speech).
 Once you've built your image, push it to https://hub.docker.com/ and select it during the OVHcloud job creation.
+
+For more quick tutorials about OVHcloud AI products, check out the showcase https://vimeo.com/showcase/8903300
 
 ## How to combine n-gram with acoustic model
 

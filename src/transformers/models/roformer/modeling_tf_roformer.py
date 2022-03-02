@@ -51,8 +51,8 @@ from ...modeling_tf_utils import (
     get_initializer,
     input_processing,
     keras_serializable,
-    shape_list,
 )
+from ...tf_utils import shape_list
 from ...utils import logging
 from .configuration_roformer import RoFormerConfig
 
@@ -1035,9 +1035,9 @@ class TFRoFormerForCausalLM(TFRoFormerPreTrainedModel, TFCausalLanguageModelingL
 
         if inputs["labels"] is not None:
             # shift labels to the left and cut last logit token
-            logits = logits[:, :-1]
+            shifted_logits = logits[:, :-1]
             labels = inputs["labels"][:, 1:]
-            loss = self.hf_compute_loss(labels=labels, logits=logits)
+            loss = self.hf_compute_loss(labels=labels, logits=shifted_logits)
 
         if not inputs["return_dict"]:
             output = (logits,) + outputs[2:]

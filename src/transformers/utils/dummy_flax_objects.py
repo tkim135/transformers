@@ -879,6 +879,13 @@ class FlaxRoFormerPreTrainedModel(metaclass=DummyObject):
         requires_backends(self, ["flax"])
 
 
+class FlaxSpeechEncoderDecoderModel(metaclass=DummyObject):
+    _backends = ["flax"]
+
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["flax"])
+
+
 class FlaxT5ForConditionalGeneration(metaclass=DummyObject):
     _backends = ["flax"]
 
@@ -957,6 +964,27 @@ class FlaxWav2Vec2Model(metaclass=DummyObject):
 
 
 class FlaxWav2Vec2PreTrainedModel(metaclass=DummyObject):
+    _backends = ["flax"]
+
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["flax"])
+
+
+class FlaxXGLMForCausalLM(metaclass=DummyObject):
+    _backends = ["flax"]
+
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["flax"])
+
+
+class FlaxXGLMModel(metaclass=DummyObject):
+    _backends = ["flax"]
+
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["flax"])
+
+
+class FlaxXGLMPreTrainedModel(metaclass=DummyObject):
     _backends = ["flax"]
 
     def __init__(self, *args, **kwargs):
