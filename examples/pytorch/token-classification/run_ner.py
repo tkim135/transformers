@@ -52,7 +52,7 @@ from downstream_t5 import T5ForTokenClassification
 
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.17.0.dev0")
+#check_min_version("4.17.0.dev0")
 
 require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/token-classification/requirements.txt")
 
@@ -71,6 +71,8 @@ class ModelArguments:
     config_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
     )
+    moe: Optional[bool] = field(
+        defalut=False, metadata={"help": "moe version?"}
     tokenizer_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
     )
@@ -328,6 +330,11 @@ def main():
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
     )
+    import copy
+    moeconfig = copy.deepcopy(config)
+    config.moe = False
+    moeconfig.moe = True
+    moeconfig.n_experts = 32
 
     tokenizer_name_or_path = model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path
     if config.model_type in {"gpt2", "roberta"}:
@@ -350,14 +357,39 @@ def main():
         )
 
     if config.model_type == 't5':
-        model = T5ForTokenClassification.from_pretrained(
-            model_args.model_name_or_path,
-            from_tf=bool(".ckpt" in model_args.model_name_or_path),
-            config=config,
-            cache_dir=model_args.cache_dir,
-            revision=model_args.model_revision,
-            use_auth_token=True if model_args.use_auth_token else None,
-        )
+        if args.moe:
+            ref_model = T5ForTokenClassification.from_pretrained(
+                model_args.model_name_or_path,
+                from_tf=bool(".ckpt" in model_args.model_name_or_path),
+                config=config,
+                cache_dir=model_args.cache_dir,
+                revision=model_args.model_revision,
+                use_auth_token=True if model_args.use_auth_token else None,
+            )
+            model = T5ForTokenClassification.from_pretrained(
+                model_args.model_name_or_path,
+                from_tf=bool(".ckpt" in model_args.model_name_or_path),
+                config=moeconfig,
+                cache_dir=model_args.cache_dir,
+                revision=model_args.model_revision,
+                use_auth_token=True if model_args.use_auth_token else None,
+            )
+            for (i,block) in enumerate(model.encoder.block):
+                if i % 4 == 0:
+                    for j in range(moeconfig.n_experts):
+                        block.layer[-1].DenseReluDense.experts[j].wi.weight = ref_model.encoder.block[i].layer[-1].DenseReluDense.wi.weight
+                        block.layer[-1].DenseReluDense.experts[j].wo.weight = ref_model.encoder.block[i].layer[-1].DenseReluDense.wo.weight
+        else:
+            model = T5ForTokenClassification.from_pretrained(
+                model_args.model_name_or_path,
+                from_tf=bool(".ckpt" in model_args.model_name_or_path),
+                config=config,
+                cache_dir=model_args.cache_dir,
+                revision=model_args.model_revision,
+                use_auth_token=True if model_args.use_auth_token else None,
+            )
+        #import pdb;
+        #pdb.set_trace()
     else:
         model = AutoModelForTokenClassification.from_pretrained(
             model_args.model_name_or_path,
@@ -554,7 +586,7 @@ def main():
             checkpoint = training_args.resume_from_checkpoint
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
-        train_result = trainer.train(resume_from_checkpoint=checkpoint)
+        train_result = trainer.train()
         metrics = train_result.metrics
         trainer.save_model()  # Saves the tokenizer too for easy upload
 
