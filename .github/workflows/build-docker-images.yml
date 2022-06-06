@@ -35,13 +35,12 @@ jobs:
         with:
           context: ./docker/transformers-all-latest-gpu
           build-args: |
-            REF=master
+            REF=main
           push: true
           tags: huggingface/transformers-all-latest-gpu
 
   latest-torch-deepspeed-docker:
     name: "Latest PyTorch + DeepSpeed"
-    needs: latest-docker
     runs-on: ubuntu-latest
     steps:
       -
@@ -62,7 +61,7 @@ jobs:
         with:
           context: ./docker/transformers-pytorch-deepspeed-latest-gpu
           build-args: |
-            REF=master
+            REF=main
           push: true
           tags: huggingface/transformers-pytorch-deepspeed-latest-gpu
 
@@ -93,7 +92,6 @@ jobs:
   latest-pytorch:
     name: "Latest PyTorch [dev]"
     runs-on: ubuntu-latest
-    needs: latest-torch-deepspeed-docker
     steps:
       -
         name: Set up Docker Buildx
@@ -113,12 +111,11 @@ jobs:
         with:
           context: ./docker/transformers-pytorch-gpu
           build-args: |
-            REF=master
+            REF=main
           push: true
           tags: huggingface/transformers-pytorch-gpu
 
   latest-tensorflow:
-    needs: latest-pytorch
     name: "Latest TensorFlow [dev]"
     runs-on: ubuntu-latest
     steps:
@@ -140,6 +137,6 @@ jobs:
         with:
           context: ./docker/transformers-tensorflow-gpu
           build-args: |
-            REF=master
+            REF=main
           push: true
           tags: huggingface/transformers-tensorflow-gpu
